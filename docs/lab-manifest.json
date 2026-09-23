@@ -1,0 +1,27 @@
+{
+  "project": "s0P0wn3d",
+  "purpose": "Demonstrateur C2 local et defensif",
+  "target": {
+    "platform": "Windows 11 x64",
+    "hypervisor": "VMware",
+    "network": "host-only ou localhost uniquement",
+    "snapshot": "clean-lab-before-demo"
+  },
+  "development": {
+    "python": "3.11",
+    "dependencies": ["pytest"],
+    "controller_host": "127.0.0.1",
+    "controller_port": 8765,
+    "web_host": "127.0.0.1",
+    "web_port": 8080
+  },
+  "allowed_commands": ["status", "heartbeat", "get_demo_log"],
+  "explicitly_disabled": [
+    "arbitrary_shell",
+    "credential_collection",
+    "keylogging",
+    "persistence",
+    "evasion",
+    "lateral_movement"
+  ]
+}
