@@ -2,6 +2,7 @@ import argparse
 import json
 import socket
 import threading
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -26,22 +27,35 @@ WEB_PAGE = """<!doctype html>
 </head>
 <body>
   <h1>s0P0wn3d</h1>
-  <p class="muted">Tableau de bord de simulation pour laboratoire local.</p>
+    <p class="muted">Tableau de bord de simulation pour laboratoire local.</p>
+    <p id="connection" class="muted">Agent : vérification...</p>
   <div class="actions">
     <button data-command="status">Etat</button>
     <button data-command="heartbeat">Heartbeat</button>
     <button data-command="get_demo_log">Journal de demo</button>
   </div>
   <pre id="result">En attente d'une commande.</pre>
+    <h2>Historique</h2>
+    <pre id="history">Aucun événement.</pre>
   <script>
     const result = document.querySelector('#result');
+        const connection = document.querySelector('#connection');
+        const history = document.querySelector('#history');
+        async function refreshState() {
+            const response = await fetch('/api/state');
+            const state = await response.json();
+            connection.textContent = 'Agent : ' + (state.connected ? 'connecté' : 'déconnecté');
+            history.textContent = state.history.length ? JSON.stringify(state.history, null, 2) : 'Aucun événement.';
+        }
     document.querySelectorAll('button').forEach((button) => {
       button.addEventListener('click', async () => {
         result.textContent = 'Commande en cours...';
         const response = await fetch('/api/command?command=' + encodeURIComponent(button.dataset.command));
         result.textContent = JSON.stringify(await response.json(), null, 2);
+                await refreshState();
       });
     });
+        refreshState();
   </script>
 </body>
 </html>"""
@@ -52,6 +66,7 @@ class AgentSession:
         self.connection: socket.socket | None = None
         self.reader = None
         self.lock = threading.Lock()
+        self.history: list[dict[str, str]] = []
 
     def attach(self, connection: socket.socket) -> None:
         reader = connection.makefile("rb")
@@ -78,7 +93,13 @@ class AgentSession:
             raw_response = self.reader.readline()
             if not raw_response:
                 raise ConnectionError("agent déconnecté")
-            return Message.decode(raw_response).payload
+            payload = Message.decode(raw_response).payload
+            self.history.append({"time": datetime.now(timezone.utc).isoformat(), "command": command})
+            return payload
+
+    def state(self) -> dict[str, object]:
+        with self.lock:
+            return {"connected": self.connection is not None, "history": list(self.history)}
 
 
 def listen_for_agent(session: AgentSession, host: str, port: int) -> None:
@@ -111,6 +132,10 @@ def make_handler(session: AgentSession) -> type[BaseHTTPRequestHandler]:
                 except (ConnectionError, ValueError) as error:
                     body = json.dumps({"ok": False, "error": str(error)}).encode("utf-8")
                     self.send_response(400)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+            elif request.path == "/api/state":
+                body = json.dumps(session.state()).encode("utf-8")
+                self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
             else:
                 self.send_error(404)
