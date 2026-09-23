@@ -20,7 +20,14 @@ def handle_command(command: str) -> Message:
 def run_agent(host: str, port: int) -> None:
     with socket.create_connection((host, port), timeout=10) as connection:
         connection.sendall(Message("hello", "demo-agent", {"mode": "simulation"}).encode())
-        command = connection.makefile("rb").readline().decode("utf-8").strip()
+        reader = connection.makefile("rb")
+        try:
+            raw_command = reader.readline()
+        finally:
+            reader.close()
+        if not raw_command:
+            raise ConnectionError("le contrôleur a fermé la connexion avant la commande")
+        command = raw_command.decode("utf-8").strip()
         response = handle_command(command)
         connection.sendall(response.encode())
 

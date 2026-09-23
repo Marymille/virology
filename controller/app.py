@@ -17,11 +17,17 @@ def run_controller(command: str, host: str, port: int) -> None:
 		with connection:
 			print(f"Agent connecté: {address[0]}:{address[1]}")
 			reader = connection.makefile("rb")
-			hello = Message.decode(reader.readline())
+			raw_hello = reader.readline()
+			if not raw_hello:
+				raise ConnectionError("l'agent a fermé la connexion sans message d'accueil")
+			hello = Message.decode(raw_hello)
 			if hello.kind != "hello":
 				raise ValueError("message d'accueil inattendu")
 			connection.sendall((command + "\n").encode("utf-8"))
-			response = Message.decode(reader.readline())
+			raw_response = reader.readline()
+			if not raw_response:
+				raise ConnectionError("l'agent a fermé la connexion sans réponse")
+			response = Message.decode(raw_response)
 			print(response.payload)
 
 
