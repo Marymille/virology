@@ -2,6 +2,7 @@ import pytest
 
 from agent.agent import handle_command
 from common.protocol import Message, validate_command
+from controller.web import AgentSession
 
 
 def test_message_round_trip() -> None:
@@ -26,3 +27,11 @@ def test_demo_commands_return_safe_payloads() -> None:
 	assert handle_command("get_demo_log").payload == {
 		"events": ["DEMO_CREDENTIAL_ACCESS", "DEMO_PERSISTENCE"]
 	}
+
+
+def test_kill_switch_disables_the_lab() -> None:
+	session = AgentSession()
+	assert session.state()["enabled"] is True
+	session.kill_switch()
+	assert session.state()["enabled"] is False
+	assert session.get_audit()[-1]["action"] == "kill_switch"
