@@ -27,6 +27,30 @@ python -m agent.agent
 
 Ouvrir `http://127.0.0.1:8080` et executer successivement `Etat`, `Heartbeat` et `Journal de demo`.
 
+## Demonstration TLS
+
+Generer une paire de fichiers de laboratoire :
+
+```powershell
+python -m tools.generate_cert --output-dir certs
+```
+
+Dans le premier terminal :
+
+```powershell
+python -m controller.web --tls --web-port 8443
+```
+
+Dans le deuxieme terminal :
+
+```powershell
+python -m agent.agent --tls
+```
+
+Ouvrir `https://127.0.0.1:8443`. Le navigateur peut afficher un avertissement, car le certificat est auto-signe et reserve au laboratoire.
+
+Dans Wireshark, filtrer `tcp.port == 8765` et verifier que les messages JSON ne sont pas lisibles sur le reseau : seul le flux TLS est observable.
+
 ## Resultats attendus
 
 - L'interface indique `Agent : connecte`.

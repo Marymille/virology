@@ -1,12 +1,14 @@
 import argparse
 import json
 import socket
+import ssl
 import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from common.protocol import Message, validate_command
+from common.tls import create_server_context, ensure_file
 
 WEB_PAGE = """<!doctype html>
 <html lang="fr">
@@ -166,7 +168,7 @@ class AgentSession:
             self.record("kill_switch", "global laboratory shutdown")
 
 
-def listen_for_agent(session: AgentSession, host: str, port: int) -> None:
+def listen_for_agent(session: AgentSession, host: str, port: int, tls_context: ssl.SSLContext | None = None) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener.bind((host, port))
@@ -175,8 +177,10 @@ def listen_for_agent(session: AgentSession, host: str, port: int) -> None:
         while True:
             connection, _ = listener.accept()
             try:
+                if tls_context is not None:
+                    connection = tls_context.wrap_socket(connection, server_side=True)
                 session.attach(connection)
-            except (ConnectionError, OSError, ValueError) as error:
+            except (ConnectionError, OSError, ValueError, ssl.SSLError) as error:
                 print(f"Connexion refusée: {error}")
 
 
@@ -238,12 +242,28 @@ def make_handler(session: AgentSession) -> type[BaseHTTPRequestHandler]:
     return DashboardHandler
 
 
-def run_web_controller(agent_host: str, agent_port: int, web_host: str, web_port: int) -> None:
+def run_web_controller(
+    agent_host: str,
+    agent_port: int,
+    web_host: str,
+    web_port: int,
+    cert_file: str | None = None,
+    key_file: str | None = None,
+) -> None:
     session = AgentSession()
-    listener = threading.Thread(target=listen_for_agent, args=(session, agent_host, agent_port), daemon=True)
+    tls_context = create_server_context(cert_file, key_file) if cert_file and key_file else None
+    listener = threading.Thread(
+        target=listen_for_agent,
+        args=(session, agent_host, agent_port, tls_context),
+        daemon=True,
+    )
     listener.start()
     server = ThreadingHTTPServer((web_host, web_port), make_handler(session))
-    print(f"Interface web disponible sur http://{web_host}:{web_port}")
+    scheme = "http"
+    if tls_context is not None:
+        server.socket = tls_context.wrap_socket(server.socket, server_side=True)
+        scheme = "https"
+    print(f"Interface web disponible sur {scheme}://{web_host}:{web_port}")
     server.serve_forever()
 
 
@@ -251,5 +271,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Interface web locale du démonstrateur")
     parser.add_argument("--agent-port", type=int, default=8765)
     parser.add_argument("--web-port", type=int, default=8080)
+    parser.add_argument("--tls", action="store_true", help="active TLS pour l'agent et l'interface")
+    parser.add_argument("--cert-file", default="certs/lab-cert.pem")
+    parser.add_argument("--key-file", default="certs/lab-key.pem")
     args = parser.parse_args()
-    run_web_controller("127.0.0.1", args.agent_port, "127.0.0.1", args.web_port)
+    if args.tls:
+        ensure_file(args.cert_file)
+        ensure_file(args.key_file)
+    run_web_controller(
+        "127.0.0.1",
+        args.agent_port,
+        "127.0.0.1",
+        args.web_port,
+        args.cert_file if args.tls else None,
+        args.key_file if args.tls else None,
+    )
