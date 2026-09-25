@@ -16,6 +16,7 @@ SIMULATED_CAPABILITIES = {
     "persistence": ("Persistance", "T1547"),
     "av_evasion": ("Évasion antivirus", "T1027"),
     "keylogging": ("Keylogging", "T1056.001"),
+    "rdp": ("Activation RDP", "T1021.001"),
     "phishing": ("Phishing", "T1566"),
     "lateral_movement": ("Propagation latérale", "T1021"),
     "privilege_escalation": ("Élévation de privilèges", "T1068"),
@@ -23,6 +24,8 @@ SIMULATED_CAPABILITIES = {
     "password_cracking": ("Cracking de mots de passe", "T1110"),
     "file_collection": ("Collecte de fichiers", "T1005"),
     "log_tampering": ("Modification de journaux", "T1070"),
+    "syscall": ("Appel système", "T1106"),
+    "whatever": ("Capacité créative de laboratoire", "LAB-CREATIVITY"),
 }
 
 WEB_PAGE = """<!doctype html>
@@ -32,15 +35,20 @@ WEB_PAGE = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s0P0wn3d - laboratoire</title>
   <style>
-    :root { color-scheme: light; font-family: system-ui, sans-serif; }
-    body { max-width: 900px; margin: 40px auto; padding: 0 20px; color: #17202a; }
+    :root { color-scheme: light; font-family: Georgia, serif; background: #fff8f5; }
+    body { max-width: 900px; margin: 40px auto; padding: 0 20px; color: #4f2942; background: #fff8f5; }
     h1 { margin-bottom: 4px; }
-    .muted { color: #5f6b76; }
+    h1, h2 { color: #a83d70; }
+    .muted { color: #91617a; }
     .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 28px 0; }
-    button { border: 0; border-radius: 6px; padding: 12px 16px; background: #166534; color: white; cursor: pointer; }
-    button.danger { background: #b91c1c; }
-    button:hover { background: #14532d; }
-    pre { min-height: 100px; padding: 16px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; white-space: pre-wrap; }
+    button { border: 1px solid #e5a9c5; border-radius: 999px; padding: 12px 16px; background: #f7c9dc; color: #662448; cursor: pointer; font: inherit; }
+    button.danger { background: #d9789f; color: #fff8f5; }
+    button:hover { background: #ee9fc0; }
+    pre { min-height: 100px; padding: 16px; background: #fff0f5; border: 1px solid #edc4d5; border-radius: 14px; white-space: pre-wrap; }
+    .command-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 18px 0 28px; }
+    .command-tab { min-height: 52px; background: #fffaf0; border-color: #e7cda9; }
+    .command-tab.active { background: #efacc8; box-shadow: 0 0 0 3px #f9dce8; }
+    .simulation-note { padding: 14px 16px; background: #fffaf0; border-left: 4px solid #e5a9c5; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -54,24 +62,22 @@ WEB_PAGE = """<!doctype html>
     <button data-command="get_demo_log">Journal de demo</button>
         <button class="danger" id="kill-switch">Désactivation globale</button>
   </div>
-    <h2>Capacités du sujet - simulation uniquement</h2>
-    <div class="actions">
-        <select id="capability" aria-label="Capacité à simuler">
-            <option value="remote_shell">Shell distant</option>
-            <option value="credential_access">Extraction d'identifiants</option>
-            <option value="persistence">Persistance</option>
-            <option value="av_evasion">Évasion antivirus</option>
-            <option value="keylogging">Keylogging</option>
-            <option value="phishing">Phishing</option>
-            <option value="lateral_movement">Propagation latérale</option>
-            <option value="privilege_escalation">Élévation de privilèges</option>
-            <option value="pass_the_hash">Pass-the-hash</option>
-            <option value="password_cracking">Cracking de mots de passe</option>
-            <option value="file_collection">Collecte de fichiers</option>
-            <option value="log_tampering">Modification de journaux</option>
-        </select>
-        <button id="simulate-capability">Créer un événement synthétique</button>
+    <h2>Commandes du sujet</h2>
+    <p class="simulation-note">Mode simulation : chaque onglet crée un événement synthétique et une alerte Blue Team. Aucune commande système n'est exécutée.</p>
+    <div class="command-tabs" role="tablist" aria-label="Types de commandes">
+        <button class="command-tab active" data-capability="keylogging">keylog</button>
+        <button class="command-tab" data-capability="rdp">rdp</button>
+        <button class="command-tab" data-capability="password_cracking">crack</button>
+        <button class="command-tab" data-capability="pass_the_hash">pth</button>
+        <button class="command-tab" data-capability="file_collection">loot</button>
+        <button class="command-tab" data-capability="phishing">phish</button>
+        <button class="command-tab" data-capability="lateral_movement">propagate</button>
+        <button class="command-tab" data-capability="privilege_escalation">privesc</button>
+        <button class="command-tab" data-capability="syscall">syscall</button>
+        <button class="command-tab" data-capability="remote_shell">shell</button>
+        <button class="command-tab" data-capability="whatever">whatever</button>
     </div>
+    <button id="simulate-capability">Tester la commande sélectionnée</button>
   <pre id="result">En attente d'une commande.</pre>
     <h2>Agents fictifs</h2>
     <pre id="agents">Chargement...</pre>
@@ -113,8 +119,16 @@ WEB_PAGE = """<!doctype html>
             result.textContent = JSON.stringify(await response.json(), null, 2);
             await refreshState();
         });
+        let selectedCapability = 'keylogging';
+        document.querySelectorAll('.command-tab').forEach((tab) => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.command-tab').forEach((item) => item.classList.remove('active'));
+                tab.classList.add('active');
+                selectedCapability = tab.dataset.capability;
+            });
+        });
         document.querySelector('#simulate-capability').addEventListener('click', async () => {
-            const capability = document.querySelector('#capability').value;
+            const capability = selectedCapability;
             const response = await fetch('/api/simulate?capability=' + encodeURIComponent(capability), { method: 'POST' });
             result.textContent = JSON.stringify(await response.json(), null, 2);
             await refreshState();

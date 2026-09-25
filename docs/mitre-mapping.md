@@ -24,6 +24,7 @@ La tactique principalement etudiee est **Command and Control (`TA0011`)**. Les r
 | Shell distant | `T1059` | Aucune execution ; commandes inconnues refusees | Alerter sur les interpreteurs inattendus, les arguments inhabituels et les chaines parent-enfant. |
 | Acces aux identifiants | `T1003` | Evenement de journal fictif uniquement | Surveiller les acces a LSASS, aux magasins d'identifiants et aux fichiers sensibles. |
 | Keylogging | `T1056.001` | Non implemente | Detecter les processus qui utilisent des API de capture clavier et leurs connexions sortantes. |
+| RDP | `T1021.001` | Evenement synthetique uniquement | Restreindre RDP au besoin, journaliser les ouvertures de session et surveiller les sources inhabituelles. |
 | Persistance | `T1547` | Evenement synthetique uniquement | Auditer les cles de demarrage, services et taches planifiees. |
 | Chiffrement des communications | `T1573` | TLS local implemente | Verifier la version TLS, le certificat et les suites cryptographiques autorisees. |
 | Phishing | `T1566` | Non implemente | Utiliser la protection messagerie, l'analyse des liens et l'authentification forte. |
@@ -31,6 +32,7 @@ La tactique principalement etudiee est **Command and Control (`TA0011`)**. Les r
 | Elevation de privileges | `T1068` / `T1548` | Non implemente | Appliquer le moindre privilege et surveiller les changements de contexte. |
 | Appels API natifs | `T1106` | Non implemente | Corréler les appels sensibles avec le processus, le parent et le comportement reseau. |
 | Obfuscation et evasions | `T1027` | Non implemente | Utiliser l'analyse comportementale et l'integrite des binaires, pas seulement les signatures. |
+| Capacite creative de laboratoire | `LAB-CREATIVITY` | Evenement synthetique uniquement | Traiter les comportements non prevus comme des anomalies et conserver leur contexte dans l'audit. |
 
 ## Limites et preuves
 
