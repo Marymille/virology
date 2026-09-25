@@ -10,6 +10,21 @@ from urllib.parse import parse_qs, urlparse
 from common.protocol import Message, validate_command
 from common.tls import create_server_context, ensure_file
 
+SIMULATED_CAPABILITIES = {
+    "remote_shell": ("Shell distant", "T1059"),
+    "credential_access": ("Accès aux identifiants", "T1003"),
+    "persistence": ("Persistance", "T1547"),
+    "av_evasion": ("Évasion antivirus", "T1027"),
+    "keylogging": ("Keylogging", "T1056.001"),
+    "phishing": ("Phishing", "T1566"),
+    "lateral_movement": ("Propagation latérale", "T1021"),
+    "privilege_escalation": ("Élévation de privilèges", "T1068"),
+    "pass_the_hash": ("Pass-the-hash", "T1550.002"),
+    "password_cracking": ("Cracking de mots de passe", "T1110"),
+    "file_collection": ("Collecte de fichiers", "T1005"),
+    "log_tampering": ("Modification de journaux", "T1070"),
+}
+
 WEB_PAGE = """<!doctype html>
 <html lang="fr">
 <head>
@@ -39,6 +54,24 @@ WEB_PAGE = """<!doctype html>
     <button data-command="get_demo_log">Journal de demo</button>
         <button class="danger" id="kill-switch">Désactivation globale</button>
   </div>
+    <h2>Capacités du sujet - simulation uniquement</h2>
+    <div class="actions">
+        <select id="capability" aria-label="Capacité à simuler">
+            <option value="remote_shell">Shell distant</option>
+            <option value="credential_access">Extraction d'identifiants</option>
+            <option value="persistence">Persistance</option>
+            <option value="av_evasion">Évasion antivirus</option>
+            <option value="keylogging">Keylogging</option>
+            <option value="phishing">Phishing</option>
+            <option value="lateral_movement">Propagation latérale</option>
+            <option value="privilege_escalation">Élévation de privilèges</option>
+            <option value="pass_the_hash">Pass-the-hash</option>
+            <option value="password_cracking">Cracking de mots de passe</option>
+            <option value="file_collection">Collecte de fichiers</option>
+            <option value="log_tampering">Modification de journaux</option>
+        </select>
+        <button id="simulate-capability">Créer un événement synthétique</button>
+    </div>
   <pre id="result">En attente d'une commande.</pre>
     <h2>Agents fictifs</h2>
     <pre id="agents">Chargement...</pre>
@@ -80,6 +113,12 @@ WEB_PAGE = """<!doctype html>
             result.textContent = JSON.stringify(await response.json(), null, 2);
             await refreshState();
         });
+        document.querySelector('#simulate-capability').addEventListener('click', async () => {
+            const capability = document.querySelector('#capability').value;
+            const response = await fetch('/api/simulate?capability=' + encodeURIComponent(capability), { method: 'POST' });
+            result.textContent = JSON.stringify(await response.json(), null, 2);
+            await refreshState();
+        });
         refreshState();
   </script>
 </body>
@@ -93,6 +132,7 @@ class AgentSession:
         self.lock = threading.Lock()
         self.history: list[dict[str, str]] = []
         self.audit_log: tuple[dict[str, str], ...] = ()
+        self.synthetic_alerts: list[dict[str, str]] = []
         self.enabled = True
         self.agents = [
             {"id": "demo-agent", "kind": "connected", "status": "offline"},
@@ -149,9 +189,28 @@ class AgentSession:
 
     def get_alerts(self) -> list[dict[str, str]]:
         with self.lock:
-            return [
+            alerts = [
                 {"severity": "info", "rule": "LAB-C2-001", "message": "Agent de démonstration connecté"}
             ] if self.connection is not None else []
+            return alerts + [dict(alert) for alert in self.synthetic_alerts]
+
+    def simulate_capability(self, capability: str) -> dict[str, str]:
+        if capability not in SIMULATED_CAPABILITIES:
+            raise ValueError("capacité de simulation inconnue")
+        with self.lock:
+            if not self.enabled:
+                self.record("simulation_blocked", capability)
+                raise ConnectionError("laboratoire désactivé par le kill switch")
+            label, technique = SIMULATED_CAPABILITIES[capability]
+            self.record("synthetic_event", capability)
+            alert = {
+                "severity": "medium",
+                "rule": f"LAB-SIM-{technique}",
+                "message": f"Simulation : {label}",
+                "technique": technique,
+            }
+            self.synthetic_alerts.append(alert)
+            return {"capability": label, "technique": technique, "simulated": "true"}
 
     def get_audit(self) -> list[dict[str, str]]:
         with self.lock:
@@ -225,7 +284,21 @@ def make_handler(session: AgentSession) -> type[BaseHTTPRequestHandler]:
             self.wfile.write(body)
 
         def do_POST(self) -> None:
-            if urlparse(self.path).path != "/api/kill-switch":
+            request = urlparse(self.path)
+            if request.path == "/api/simulate":
+                capability = parse_qs(request.query).get("capability", [""])[0]
+                try:
+                    body = json.dumps({"ok": True, "data": session.simulate_capability(capability)}).encode("utf-8")
+                    self.send_response(200)
+                except (ConnectionError, ValueError) as error:
+                    body = json.dumps({"ok": False, "error": str(error)}).encode("utf-8")
+                    self.send_response(400)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if request.path != "/api/kill-switch":
                 self.send_error(404)
                 return
             session.kill_switch()

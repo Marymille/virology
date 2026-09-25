@@ -2,7 +2,7 @@ import pytest
 
 from agent.agent import handle_command
 from common.protocol import Message, validate_command
-from controller.web import AgentSession
+from controller.web import AgentSession, SIMULATED_CAPABILITIES
 
 
 def test_message_round_trip() -> None:
@@ -35,3 +35,15 @@ def test_kill_switch_disables_the_lab() -> None:
 	session.kill_switch()
 	assert session.state()["enabled"] is False
 	assert session.get_audit()[-1]["action"] == "kill_switch"
+
+
+def test_subject_capabilities_are_synthetic_only() -> None:
+	session = AgentSession()
+	for capability, (_, technique) in SIMULATED_CAPABILITIES.items():
+		result = session.simulate_capability(capability)
+		assert result == {
+			"capability": result["capability"],
+			"technique": technique,
+			"simulated": "true",
+		}
+	assert len(session.get_audit()) == len(SIMULATED_CAPABILITIES)

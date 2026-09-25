@@ -53,6 +53,8 @@ Le tableau de bord utilise HTTPS. Le canal agent-controleur utilise une socket T
 
 Dans Wireshark, filtrer `tcp.port == 8765` et verifier que seul le handshake et le flux TLS sont observables. Il ne faut pas presenter ce canal agent comme du HTTP : c'est un transport TLS local dedie au laboratoire.
 
+Dans la section `Capacités du sujet`, choisir une option puis cliquer sur `Créer un événement synthétique`. Le tableau de bord ajoute une alerte MITRE et une entrée d'audit, mais n'exécute aucune action Windows réelle.
+
 ## Resultats attendus
 
 - L'interface indique `Agent : connecte`.
