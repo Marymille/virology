@@ -356,7 +356,9 @@ def run_web_controller(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Interface web locale du démonstrateur")
+    parser.add_argument("--agent-host", default="127.0.0.1")
     parser.add_argument("--agent-port", type=int, default=8765)
+    parser.add_argument("--web-host", default="127.0.0.1")
     parser.add_argument("--web-port", type=int, default=8080)
     parser.add_argument("--tls", action="store_true", help="active TLS pour l'agent et l'interface")
     parser.add_argument("--cert-file", default="certs/lab-cert.pem")
@@ -366,9 +368,9 @@ if __name__ == "__main__":
         ensure_file(args.cert_file)
         ensure_file(args.key_file)
     run_web_controller(
-        "127.0.0.1",
+        args.agent_host,
         args.agent_port,
-        "127.0.0.1",
+        args.web_host,
         args.web_port,
         args.cert_file if args.tls else None,
         args.key_file if args.tls else None,
