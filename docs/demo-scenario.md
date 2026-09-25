@@ -27,7 +27,7 @@ python -m agent.agent
 
 Ouvrir `http://127.0.0.1:8080` et executer successivement `Etat`, `Heartbeat` et `Journal de demo`.
 
-## Demonstration TLS
+## Demonstration principale : HTTPS/TLS
 
 Generer une paire de fichiers de laboratoire :
 
@@ -47,9 +47,11 @@ Dans le deuxieme terminal :
 python -m agent.agent --tls
 ```
 
-Ouvrir `https://127.0.0.1:8443`. Le navigateur peut afficher un avertissement, car le certificat est auto-signe et reserve au laboratoire.
+Ouvrir `https://127.0.0.1:8443`. Le navigateur peut afficher un avertissement, car le certificat est auto-signe et reserve au laboratoire. Cette version chiffree est la demonstration principale du projet.
 
-Dans Wireshark, filtrer `tcp.port == 8765` et verifier que les messages JSON ne sont pas lisibles sur le reseau : seul le flux TLS est observable.
+Le tableau de bord utilise HTTPS. Le canal agent-controleur utilise une socket TLS persistante sur le port `8765` : les messages JSON sont encapsules dans TLS et ne sont pas lisibles en clair.
+
+Dans Wireshark, filtrer `tcp.port == 8765` et verifier que seul le handshake et le flux TLS sont observables. Il ne faut pas presenter ce canal agent comme du HTTP : c'est un transport TLS local dedie au laboratoire.
 
 ## Resultats attendus
 

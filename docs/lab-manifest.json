@@ -17,6 +17,9 @@
   },
   "tls_demo": {
     "enabled_with_flag": true,
+    "primary_demo": true,
+    "agent_channel": "TLS-wrapped persistent socket",
+    "dashboard_channel": "HTTPS",
     "certificate": "certs/lab-cert.pem",
     "private_key": "certs/lab-key.pem",
     "web_port": 8443,

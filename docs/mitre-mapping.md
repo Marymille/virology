@@ -10,10 +10,10 @@ La tactique principalement etudiee est **Command and Control (`TA0011`)**. Les r
 
 | Element du prototype | Reference ATT&CK | Statut | Note Blue Team |
 | --- | --- | --- | --- |
-| Echange agent-controleur sur TCP local | `TA0011` / `T1071.001` | Simulation locale | Surveiller les connexions sortantes, le processus a l'origine du flux et les destinations inhabituelles. |
+| Echange agent-controleur sur socket TLS locale | `TA0011` / `T1573.001` | TLS de laboratoire | Surveiller les connexions sortantes, le processus a l'origine du flux et les destinations inhabituelles. |
 | Echange chiffre en TLS | `TA0011` / `T1573.001` | TLS de laboratoire | Inspecter les metadonnees TLS, les certificats, les destinations et les anomalies de volume. |
 | Reception d'une commande liste blanche | `TA0011` / `T1059` | Simulation uniquement | Journaliser l'identite de l'agent, l'heure, la commande et le resultat. |
-| Heartbeat et etat d'un agent | `TA0011` / `T1071.001` | Donnees fictives | Rechercher un beaconing regulier et comparer la periodicite au comportement habituel. |
+| Heartbeat et etat d'un agent | `TA0011` / `T1071.001` | HTTPS/TLS de laboratoire | Rechercher un beaconing regulier et comparer la periodicite au comportement habituel. |
 | Journal d'audit du controleur | Detection defensive | Implemente | Proteger les journaux contre la modification et centraliser les evenements. |
 | Kill switch de laboratoire | Mesure defensive | Implemente | Permettre l'isolement rapide de la session et conserver la trace de l'action. |
 
